@@ -4,13 +4,11 @@ import { writeFile } from "fs";
 import * as Sentry from "@sentry/node";
 
 import {
-  AnyWASocket,
   downloadContentFromMessage,
   jidNormalizedUser,
   MediaType,
   MessageUpsertType,
   proto,
-  WALegacySocket,
   WAMessage,
   WAMessageUpdate,
   WASocket,
@@ -37,7 +35,7 @@ import UpdateTicketService from "../TicketServices/UpdateTicketService";
 import { sayChatbot } from "./ChatBotListener";
 import hourExpedient from "./hourExpedient";
 
-type Session = AnyWASocket & {
+type Session = WASocket & {
   id?: number;
   store?: Store;
 };
@@ -199,12 +197,7 @@ export const getQuotedMessage = (msg: proto.IWebMessageInfo): any => {
 };
 
 const getMeSocket = (wbot: Session): IMe => {
-  return wbot.type === "legacy"
-    ? {
-        id: jidNormalizedUser((wbot as WALegacySocket).state.legacy.user.id),
-        name: (wbot as WALegacySocket).state.legacy.user.name
-      }
-    : {
+  return {
         id: jidNormalizedUser((wbot as WASocket).user.id),
         name: (wbot as WASocket).user.name
       };
@@ -224,10 +217,7 @@ const getSenderMessage = (
 };
 
 const getContactMessage = async (msg: proto.IWebMessageInfo, wbot: Session) => {
-  if (wbot.type === "legacy") {
-    return wbot.store.contacts[msg.key.participant || msg.key.remoteJid] as IMe;
-  }
-
+  
   const isGroup = msg.key.remoteJid.includes("g.us");
   const rawNumber = msg.key.remoteJid.replace(/\D/g, "");
   return isGroup
@@ -897,8 +887,9 @@ const filterMessages = (msg: WAMessage): boolean => {
 
 const wbotMessageListener = async (wbot: Session): Promise<void> => {
   try {
-    wbot.ev.on("messages.upsert", async (messageUpsert: ImessageUpsert) => {
+   wbot.ev.on("messages.upsert", async (messageUpsert: ImessageUpsert) => {
       const messages = messageUpsert.messages
+
         .filter(filterMessages)
         .map(msg => msg);
 
@@ -924,9 +915,9 @@ const wbotMessageListener = async (wbot: Session): Promise<void> => {
       });
     });
 
-    wbot.ev.on("messages.set", async (messageSet: IMessage) => {
-      console.log(messageSet);
-    });
+    //wbot.ev.on("messages.set", async (messageSet: IMessage) => {
+      //console.log(messageSet);
+    //});
   } catch (error) {
     Sentry.captureException(error);
     logger.error(`Error handling wbot message listener. Err: ${error}`);
