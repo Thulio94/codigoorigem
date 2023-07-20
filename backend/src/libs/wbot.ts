@@ -10,11 +10,10 @@ import { Boom } from "@hapi/boom";
 import MAIN_LOGGER from "@adiwajshing/baileys/lib/Utils/logger";
 import Whatsapp from "../models/Whatsapp";
 import { logger } from "../utils/logger";
-
-import authState from "../helpers/authState";
 import AppError from "../errors/AppError";
 import { getIO } from "./socket";
 import { Store } from "./store";
+import { useMultiFileAuthState } from "../helpers/useMultiFileAuthState";
 import { StartWhatsAppSession } from "../services/WbotServices/StartWhatsAppSession";
 import DeleteBaileysService from "../services/BaileysServices/DeleteBaileysService";
 
@@ -82,14 +81,14 @@ export const initWbot = async (whatsapp: Whatsapp): Promise<Session> => {
         const store = makeInMemoryStore({
           logger: loggerBaileys
         });
-
+        const { state, saveCreds } = await useMultiFileAuthState(whatsapp);
 
         wsocket = makeWASocket({
-              logger: loggerBaileys,
-              printQRInTerminal: false,
-              auth: state as AuthenticationState,
-              version
-            })
+          logger: loggerBaileys,
+          printQRInTerminal: false,
+          auth: state as AuthenticationState,
+          version
+        })
 
         wsocket.ev.on(
           "connection.update",
@@ -194,7 +193,7 @@ export const initWbot = async (whatsapp: Whatsapp): Promise<Session> => {
             }
           }
         );
-        wsocket.ev.on("creds.update", saveState);
+        wsocket.ev.on("creds.update", saveCreds);
 
         wsocket.store = store;
         store.bind(wsocket.ev);
