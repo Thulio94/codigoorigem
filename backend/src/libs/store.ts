@@ -8,7 +8,6 @@ import {
   PresenceData,
   proto,
   WAMessageCursor,
-  WAMessageKey,
   WASocket
 } from "@adiwajshing/baileys";
 import KeyedDB from "@adiwajshing/keyed-db";
@@ -60,22 +59,12 @@ export interface Store {
     jid: string,
     sock: WASocket | undefined
   ) => Promise<proto.IWebMessageInfo>;
-  fetchImageUrl: (
-    jid: string,
-    sock: WASocket | undefined
-  ) => Promise<string>;
+  fetchImageUrl: (jid: string, sock: WASocket | undefined) => Promise<string>;
   fetchGroupMetadata: (
     jid: string,
     sock: WASocket | undefined
   ) => Promise<GroupMetadata>;
-  //fetchBroadcastListInfo: (
-    //jid: string,
-   //sock: WASocket | undefined
-  //) => Promise<GroupMetadata>;
-  fetchMessageReceipts: (
-    { remoteJid, id }: WAMessageKey,
-    sock: WASocket | undefined
-  ) => Promise<proto.IUserReceipt[]>;
+
   toJSON: () => {
     chats: KeyedDB<Chat, string>;
     contacts: {

@@ -13,39 +13,31 @@ const ImportContactsService = async (userId: number): Promise<void> => {
   let phoneContacts;
 
   try {
-    
-      phoneContacts = wbot.store.contacts;
-    
-    
-      const contactsString = await ShowBaileysService(wbot.id);
-      phoneContacts = JSON.parse(JSON.stringify(contactsString.contacts));
-    
+    const contactsString = await ShowBaileysService(wbot.id);
+    phoneContacts = JSON.parse(JSON.stringify(contactsString.contacts));
   } catch (err) {
     logger.error(`Could not get whatsapp contacts from phone. Err: ${err}`);
   }
 
+  phoneContacts.forEach(async ({ id, name }) => {
+    if (id === "status@broadcast" || id.includes("g.us") === "g.us") return;
+    const number = id.replace(/\D/g, "");
 
-  if (phoneContacts && wbot.type === "md") {
-    phoneContacts.forEach(async ({ id, name }) => {
-      if (id === "status@broadcast" || id.includes("g.us") === "g.us") return;
-      const number = id.replace(/\D/g, "");
-
-      const numberExists = await Contact.findOne({
-        where: { number }
-      });
-
-      if (!numberExists) {
-        try {
-          await CreateContactService({ number, name });
-        } catch (error) {
-          console.log(error);
-          logger.warn(
-            `Could not get whatsapp contacts from phone. Err: ${error}`
-          );
-        }
-      }
+    const numberExists = await Contact.findOne({
+      where: { number }
     });
-  }
+
+    if (!numberExists) {
+      try {
+        await CreateContactService({ number, name });
+      } catch (error) {
+        console.log(error);
+        logger.warn(
+          `Could not get whatsapp contacts from phone. Err: ${error}`
+        );
+      }
+    }
+  });
 };
 
-export default ImportContactsService;
+export default ImportContactsService; 

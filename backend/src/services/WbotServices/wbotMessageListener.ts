@@ -50,11 +50,6 @@ interface IMe {
   id: string;
 }
 
-interface IMessage {
-  messages: WAMessage[];
-  isLatest: boolean;
-}
-
 const writeFileAsync = promisify(writeFile);
 
 const getTypeMessage = (msg: proto.IWebMessageInfo): string => {
@@ -62,52 +57,56 @@ const getTypeMessage = (msg: proto.IWebMessageInfo): string => {
 };
 
 const getBodyButton = (msg: proto.IWebMessageInfo): string => {
-  try {
-    if (msg?.message?.buttonsMessage?.contentText) {
-      let bodyMessage = `*${msg?.message?.buttonsMessage?.contentText}*`;
-      // eslint-disable-next-line no-restricted-syntax
-      for (const buton of msg.message?.buttonsMessage?.buttons) {
-        bodyMessage += `\n\n${buton.buttonText.displayText}`;
-      }
-      return bodyMessage;
+  if (msg.key.fromMe && msg?.message?.buttonsMessage?.contentText) {
+    let bodyMessage = `*${msg?.message?.buttonsMessage?.contentText}*`;
+    // eslint-disable-next-line no-restricted-syntax
+    for (const buton of msg.message?.buttonsMessage?.buttons) {
+      bodyMessage += `\n\n${buton.buttonText?.displayText}`;
     }
-    if (msg?.message?.listMessage) {
-      let bodyMessage = `*${msg?.message?.listMessage?.description}*`;
-      // eslint-disable-next-line no-restricted-syntax
-      for (const buton of msg.message?.listMessage?.sections[0]?.rows) {
-        bodyMessage += `\n\n${buton.title}`;
-      }
-      return bodyMessage;
-    }
-    if (msg.message?.viewOnceMessage?.message?.listMessage) {
-      const obj = msg.message?.viewOnceMessage?.message.listMessage;
-      let bodyMessage = `*${obj.description}*`;
-      // eslint-disable-next-line no-restricted-syntax
-      for (const buton of obj.sections[0]?.rows) {
-        bodyMessage += `\n\n${buton.title}`;
-      }
+    return bodyMessage;
+  }
 
-      return bodyMessage;
-    }
-    if (msg.message?.viewOnceMessage?.message?.buttonsMessage) {
-      const obj = msg.message?.viewOnceMessage?.message.buttonsMessage;
-      let bodyMessage = `*${obj.contentText}*`;
+  if (msg.key.fromMe && msg?.message?.listMessage) {
+    let bodyMessage = `*${msg?.message?.listMessage?.description}*`;
+    // eslint-disable-next-line no-restricted-syntax
+    for (const buton of msg.message?.listMessage?.sections) {
       // eslint-disable-next-line no-restricted-syntax
-      for (const buton of obj?.buttons) {
-        bodyMessage += `\n\n${buton.buttonText.displayText}`;
+      for (const rows of buton.rows) {
+        bodyMessage += `\n\n${rows.title}`;
       }
-      return bodyMessage;
     }
-  } catch (error) {
-    logger.error(error);
+
+    return bodyMessage;
+  }
+  if (msg.key.fromMe && msg?.message?.viewOnceMessage?.message?.listMessage) {
+    let bodyMessage = `*${msg?.message?.viewOnceMessage?.message?.listMessage?.description}*`;
+    // eslint-disable-next-line no-restricted-syntax
+    for (const buton of msg?.message?.viewOnceMessage?.message?.listMessage
+      ?.sections) {
+      // eslint-disable-next-line no-restricted-syntax
+      for (const rows of buton.rows) {
+        bodyMessage += `\n\n${rows.title}`;
+      }
+    }
+
+    return bodyMessage;
+  }
+  if (
+    msg.key.fromMe &&
+    msg?.message?.viewOnceMessage?.message?.buttonsMessage
+  ) {
+    let bodyMessage = `*${msg?.message?.viewOnceMessage?.message?.buttonsMessage?.contentText}*`;
+    // eslint-disable-next-line no-restricted-syntax
+    for (const buton of msg?.message?.viewOnceMessage?.message?.buttonsMessage
+      ?.buttons) {
+      bodyMessage += `\n\n${buton.buttonText?.displayText}`;
+    }
+
+    return bodyMessage;
   }
 };
 
-const msgLocation = (
-  image: ArrayBuffer,
-  latitude: number,
-  longitude: number
-) => {
+const msgLocation = (image, latitude, longitude) => {
   if (image) {
     const b64 = Buffer.from(image).toString("base64");
 
@@ -119,23 +118,17 @@ const msgLocation = (
 export const getBodyMessage = (msg: proto.IWebMessageInfo): string | null => {
   try {
     const type = getTypeMessage(msg);
-    if (!type) {
-      console.log("não achou o  type 90");
-      return;
-    }
 
     const types = {
       conversation: msg.message.conversation,
       imageMessage: msg.message.imageMessage?.caption,
       videoMessage: msg.message.videoMessage?.caption,
-      extendedTextMessage:
-        getBodyButton(msg) ||
-        msg.message.extendedTextMessage?.text ||
-        msg.message?.listMessage?.description,
+      extendedTextMessage: msg.message.extendedTextMessage?.text,
       buttonsResponseMessage:
         msg.message.buttonsResponseMessage?.selectedDisplayText,
       listResponseMessage:
-        msg?.message?.listResponseMessage?.title || "Chegou Aqui",
+        msg.message.listResponseMessage?.title ||
+        msg.message.listResponseMessage?.singleSelectReply?.selectedRowId,
       templateButtonReplyMessage:
         msg.message?.templateButtonReplyMessage?.selectedId,
       messageContextInfo:
@@ -144,8 +137,9 @@ export const getBodyMessage = (msg: proto.IWebMessageInfo): string | null => {
       buttonsMessage:
         getBodyButton(msg) || msg.message.listResponseMessage?.title,
       stickerMessage: "sticker",
-      contactMessage: msg.message.contactMessage?.vcard,
+      contactMessage: msg.message?.contactMessage?.vcard,
       contactsArrayMessage: "varios contatos",
+      // locationMessage: `Latitude: ${msg.message.locationMessage?.degreesLatitude} - Longitude: ${msg.message.locationMessage?.degreesLongitude}`,
       locationMessage: msgLocation(
         msg.message?.locationMessage?.jpegThumbnail,
         msg.message?.locationMessage?.degreesLatitude,
@@ -154,25 +148,21 @@ export const getBodyMessage = (msg: proto.IWebMessageInfo): string | null => {
       liveLocationMessage: `Latitude: ${msg.message.liveLocationMessage?.degreesLatitude} - Longitude: ${msg.message.liveLocationMessage?.degreesLongitude}`,
       documentMessage: msg.message.documentMessage?.title,
       audioMessage: "Áudio",
-      reactionMessage: msg.message?.reactionMessage?.text,
-      ephemeralMessage:
-        msg.message?.ephemeralMessage?.message?.extendedTextMessage?.text,
-      protocolMessage: msg.message?.protocolMessage?.type,
-      listMessage: getBodyButton(msg) || msg.message?.listMessage?.description,
-      viewOnceMessage: getBodyButton(msg)
+      listMessage: getBodyButton(msg) || msg.message.listResponseMessage?.title,
+      viewOnceMessage: getBodyButton(msg),
+      reactionMessage: msg.message.reactionMessage?.text || "reaction"
     };
 
-    const objKey = Object.keys(types).find(objKeyz => objKeyz === type);
+    const objKey = Object.keys(types).find(key => key === type);
 
     if (!objKey) {
-      logger.warn(`#### Nao achou o type em getBodyMessage: ${type}
-${JSON.stringify(msg?.message)}`);
+      logger.warn(`#### Nao achou o type 152: ${type}
+${JSON.stringify(msg)}`);
       Sentry.setExtra("Mensagem", { BodyMsg: msg.message, msg, type });
       Sentry.captureException(
-        new Error("Novo Tipo de Mensagem em getBodyMessage")
+        new Error("Novo Tipo de Mensagem em getTypeMessage")
       );
     }
-
     return types[type];
   } catch (error) {
     Sentry.setExtra("Error getTypeMessage", { msg, BodyMsg: msg.message });
@@ -181,7 +171,7 @@ ${JSON.stringify(msg?.message)}`);
   }
 };
 
-export const getQuotedMessage = (msg: proto.IWebMessageInfo): any => {
+export const getQuotedMessage = (msg: proto.IWebMessageInfo) => {
   const body = extractMessageContent(msg.message)[
     Object.keys(msg?.message).values().next().value
   ];
@@ -196,11 +186,22 @@ export const getQuotedMessage = (msg: proto.IWebMessageInfo): any => {
   return quoted;
 };
 
+export const getQuotedMessageId = (msg: proto.IWebMessageInfo) => {
+  const body = extractMessageContent(msg.message)[
+    Object.keys(msg?.message).values().next().value
+  ];
+  const reaction = msg?.message?.reactionMessage
+    ? msg?.message?.reactionMessage?.key?.id
+    : "";
+
+  return reaction || body?.contextInfo?.stanzaId;
+};
+
 const getMeSocket = (wbot: Session): IMe => {
   return {
-        id: jidNormalizedUser((wbot as WASocket).user.id),
-        name: (wbot as WASocket).user.name
-      };
+    id: jidNormalizedUser((wbot as WASocket).user.id),
+    name: (wbot as WASocket).user.name
+  };
 };
 
 const getSenderMessage = (
@@ -217,7 +218,6 @@ const getSenderMessage = (
 };
 
 const getContactMessage = async (msg: proto.IWebMessageInfo, wbot: Session) => {
-  
   const isGroup = msg.key.remoteJid.includes("g.us");
   const rawNumber = msg.key.remoteJid.replace(/\D/g, "");
   return isGroup
@@ -237,53 +237,81 @@ const downloadMedia = async (msg: proto.IWebMessageInfo) => {
     msg.message?.audioMessage ||
     msg.message?.videoMessage ||
     msg.message?.stickerMessage ||
-    msg.message?.documentMessage;
+    msg.message?.documentMessage ||
+    msg.message?.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage;
 
-  const messageType = mineType.mimetype
-    .split("/")[0]
-    .replace("application", "document")
+  // eslint-disable-next-line no-nested-ternary
+  const messageType = msg.message?.documentMessage
+    ? "document"
+    : mineType.mimetype.split("/")[0].replace("application", "document")
     ? (mineType.mimetype
         .split("/")[0]
         .replace("application", "document") as MediaType)
     : (mineType.mimetype.split("/")[0] as MediaType);
 
-  const stream = await downloadContentFromMessage(
-    msg.message.audioMessage ||
-      msg.message.videoMessage ||
-      msg.message.documentMessage ||
-      msg.message.imageMessage ||
-      msg.message.stickerMessage ||
-      msg.message.extendedTextMessage?.contextInfo.quotedMessage.imageMessage,
-    messageType
-  );
+  let stream;
+  let contDownload = 0;
+
+  while (contDownload < 10 && !stream) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      stream = await downloadContentFromMessage(
+        msg.message.audioMessage ||
+          msg.message.videoMessage ||
+          msg.message.documentMessage ||
+          msg.message.imageMessage ||
+          msg.message.stickerMessage ||
+          msg.message.extendedTextMessage?.contextInfo.quotedMessage
+            .imageMessage ||
+          msg.message?.buttonsMessage?.imageMessage ||
+          msg.message?.templateMessage?.fourRowTemplate?.imageMessage ||
+          msg.message?.templateMessage?.hydratedTemplate?.imageMessage ||
+          msg.message?.templateMessage?.hydratedFourRowTemplate?.imageMessage ||
+          msg.message?.interactiveMessage?.header?.imageMessage,
+        messageType
+      );
+    } catch (error) {
+      // eslint-disable-next-line no-plusplus
+      contDownload++;
+      // eslint-disable-next-line no-await-in-loop, no-loop-func
+      await new Promise(resolve =>
+        setTimeout(resolve, 1000 * contDownload * 2)
+      );
+      logger.warn(
+        `>>>> erro ${contDownload} de baixar o arquivo ${msg?.key.id}`
+      );
+    }
+  }
 
   let buffer = Buffer.from([]);
-
   // eslint-disable-next-line no-restricted-syntax
-  for await (const chunk of stream) {
-    buffer = Buffer.concat([buffer, chunk]);
+  try {
+    // eslint-disable-next-line no-restricted-syntax
+    for await (const chunk of stream) {
+      buffer = Buffer.concat([buffer, chunk]);
+    }
+  } catch (error) {
+    return { data: "error", mimetype: "", filename: "" };
   }
 
   if (!buffer) {
+    Sentry.setExtra("ERR_WAPP_DOWNLOAD_MEDIA", { msg });
+    Sentry.captureException(new Error("ERR_WAPP_DOWNLOAD_MEDIA"));
     throw new Error("ERR_WAPP_DOWNLOAD_MEDIA");
   }
-
   let filename = msg.message?.documentMessage?.fileName || "";
 
   if (!filename) {
     const ext = mineType.mimetype.split("/")[1].split(";")[0];
     filename = `${new Date().getTime()}.${ext}`;
   }
-
   const media = {
     data: buffer,
     mimetype: mineType.mimetype,
     filename
   };
-
   return media;
 };
-
 const verifyContact = async (
   msgContact: IMe,
   wbot: Session
@@ -305,14 +333,6 @@ const verifyContact = async (
   const contact = CreateOrUpdateContactService(contactData);
 
   return contact;
-};
-
-export const getQuotedMessageId = (msg: proto.IWebMessageInfo): string => {
-  const body = extractMessageContent(msg.message)[
-    Object.keys(msg?.message).values().next().value
-  ];
-
-  return body?.contextInfo?.stanzaId;
 };
 
 const verifyQuotedMessage = async (
@@ -419,20 +439,48 @@ export const verifyMessage = async (
 
 const isValidMsg = (msg: proto.IWebMessageInfo): boolean => {
   if (msg.key.remoteJid === "status@broadcast") return false;
-  const msgType = getTypeMessage(msg);
-  const ifType =
-    msgType === "conversation" ||
-    msgType === "extendedTextMessage" ||
-    msgType === "audioMessage" ||
-    msgType === "videoMessage" ||
-    msgType === "imageMessage" ||
-    msgType === "documentMessage" ||
-    msgType === "stickerMessage" ||
-    msgType === "buttonsResponseMessage" ||
-    msgType === "listResponseMessage" ||
-    msgType === "listMessage";
+  try {
+    const msgType = getTypeMessage(msg);
+    if (!msgType) {
+      return;
+    }
 
-  return !!ifType;
+    const ifType =
+      msgType === "conversation" ||
+      msgType === "extendedTextMessage" ||
+      msgType === "audioMessage" ||
+      msgType === "videoMessage" ||
+      msgType === "imageMessage" ||
+      msgType === "documentMessage" ||
+      msgType === "stickerMessage" ||
+      msgType === "buttonsResponseMessage" ||
+      msgType === "buttonsMessage" ||
+      msgType === "messageContextInfo" ||
+      msgType === "locationMessage" ||
+      msgType === "liveLocationMessage" ||
+      msgType === "contactMessage" ||
+      msgType === "voiceMessage" ||
+      msgType === "mediaMessage" ||
+      msgType === "contactsArrayMessage" ||
+      msgType === "reactionMessage" ||
+      msgType === "ephemeralMessage" ||
+      msgType === "protocolMessage" ||
+      msgType === "listResponseMessage" ||
+      msgType === "listMessage" ||
+      msgType === "viewOnceMessage";
+
+    if (!ifType) {
+      logger.warn(`#### Nao achou o type em isValidMsg: ${msgType}
+${JSON.stringify(msg?.message)}`);
+      Sentry.setExtra("Mensagem", { BodyMsg: msg.message, msg, msgType });
+      Sentry.captureException(new Error("Novo Tipo de Mensagem em isValidMsg"));
+    }
+
+    return !!ifType;
+  } catch (error) {
+    Sentry.setExtra("Error isValidMsg", { msg });
+    Sentry.captureException(error);
+  }
 };
 
 const verifyQueue = async (
@@ -726,12 +774,15 @@ const handleMessage = async (
     const bodyMessage = getBodyMessage(msg);
     const msgType = getTypeMessage(msg);
 
+    if (msgType === "protocolMessage") return; // Tratar isso no futuro para excluir msgs se vor REVOKE
     const hasMedia =
       msg.message?.audioMessage ||
       msg.message?.imageMessage ||
       msg.message?.videoMessage ||
       msg.message?.documentMessage ||
-      msg.message.stickerMessage;
+      msg.message.stickerMessage ||
+      msg.message?.extendedTextMessage?.contextInfo?.quotedMessage
+        ?.imageMessage;
 
     if (msg.key.fromMe) {
       if (/\u200e/.test(bodyMessage)) return;
@@ -740,7 +791,11 @@ const handleMessage = async (
         !hasMedia &&
         msgType !== "conversation" &&
         msgType !== "extendedTextMessage" &&
-        msgType !== "vcard"
+        msgType !== "vcard" &&
+        msgType !== "reactionMessage" &&
+        msgType !== "ephemeralMessage" &&
+        msgType !== "protocolMessage" &&
+        msgType !== "viewOnceMessage"
       )
         return;
       msgContact = await getContactMessage(msg, wbot);
@@ -788,26 +843,25 @@ const handleMessage = async (
     } else {
       await verifyMessage(msg, ticket, contact);
     }
-    
+
     const checkExpedient = await hourExpedient();
     if (checkExpedient) {
-    if (
-      !ticket.queue &&
-      !isGroup &&
-      !msg.key.fromMe &&
-      !ticket.userId &&
-      whatsapp.queues.length >= 1
-    ) {
-      await verifyQueue(wbot, msg, ticket, contact);
-    }
-
-    if (ticket.queue && ticket.queueId) {
-      if (!ticket.user) {
-        await sayChatbot(ticket.queueId, wbot, ticket, contact, msg);
+      if (
+        !ticket.queue &&
+        !isGroup &&
+        !msg.key.fromMe &&
+        !ticket.userId &&
+        whatsapp.queues.length >= 1
+      ) {
+        await verifyQueue(wbot, msg, ticket, contact);
       }
-    }
 
-  } else {
+      if (ticket.queue && ticket.queueId) {
+        if (!ticket.user) {
+          await sayChatbot(ticket.queueId, wbot, ticket, contact, msg);
+        }
+      }
+    } else {
       const getLastMessageFromMe = await Message.findOne({
         where: {
           ticketId: ticket.id,
@@ -815,7 +869,7 @@ const handleMessage = async (
         },
         order: [["createdAt", "DESC"]]
       });
-      
+
       if (
         getLastMessageFromMe?.body ===
         formatBody(`\u200e${whatsapp.outOfWorkMessage}`, contact)
@@ -887,9 +941,8 @@ const filterMessages = (msg: WAMessage): boolean => {
 
 const wbotMessageListener = async (wbot: Session): Promise<void> => {
   try {
-   wbot.ev.on("messages.upsert", async (messageUpsert: ImessageUpsert) => {
+    wbot.ev.on("messages.upsert", async (messageUpsert: ImessageUpsert) => {
       const messages = messageUpsert.messages
-
         .filter(filterMessages)
         .map(msg => msg);
 
@@ -914,10 +967,6 @@ const wbotMessageListener = async (wbot: Session): Promise<void> => {
         handleMsgAck(message, message.update.status);
       });
     });
-
-    //wbot.ev.on("messages.set", async (messageSet: IMessage) => {
-      //console.log(messageSet);
-    //});
   } catch (error) {
     Sentry.captureException(error);
     logger.error(`Error handling wbot message listener. Err: ${error}`);

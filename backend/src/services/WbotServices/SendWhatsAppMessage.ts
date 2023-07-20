@@ -23,23 +23,22 @@ const SendWhatsAppMessage = async ({
     ticket.isGroup ? "g.us" : "s.whatsapp.net"
   }`;
   if (quotedMsg) {
-    
-      const chatMessages = await Message.findOne({
-        where: {
-          id: quotedMsg.id
-        }
-      });
+    const chatMessages = await Message.findOne({
+      where: {
+        id: quotedMsg.id
+      }
+    });
 
-      const msgFound = JSON.parse(JSON.stringify(chatMessages.dataJson));
+    const msgFound = JSON.parse(JSON.stringify(chatMessages.dataJson));
 
-      options = {
-        quoted: {
-          key: msgFound.key,
-          message: {
-            extendedTextMessage: msgFound.message.extendedTextMessage
-          }
+    options = {
+      quoted: {
+        key: msgFound.key,
+        message: {
+          extendedTextMessage: msgFound.message.extendedTextMessage
         }
-      };
+      }
+    };
   }
 
   try {

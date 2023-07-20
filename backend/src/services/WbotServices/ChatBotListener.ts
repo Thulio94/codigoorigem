@@ -68,7 +68,6 @@ const sendDialog = async (
 ) => {
   const showChatBots = await ShowChatBotServices(choosenQueue.id);
   if (showChatBots.options) {
-
     const buttonActive = await Setting.findOne({
       where: {
         key: "chatBotType"
@@ -109,28 +108,26 @@ const sendDialog = async (
       });
 
       if (buttons.length > 0) {
+        const buttonMessage = {
+          text: `\u200e${choosenQueue.greetingMessage}`,
+          buttons,
+          headerType: 1
+        };
 
-      const buttonMessage = {
-        text: `\u200e${choosenQueue.greetingMessage}`,
-        buttons,
-        headerType: 1
-      };
+        const send = await wbot.sendMessage(
+          `${contact.number}@${ticket.isGroup ? "g.us" : "s.whatsapp.net"}`,
+          buttonMessage
+        );
 
-      const send = await wbot.sendMessage(
-        `${contact.number}@${ticket.isGroup ? "g.us" : "s.whatsapp.net"}`,
-        buttonMessage
-      );
+        await verifyMessage(send, ticket, contact);
 
-      await verifyMessage(send, ticket, contact);
-
-      return send;
+        return send;
       }
 
       const body = `\u200e${choosenQueue.greetingMessage}`;
       const send = await sendMessage(wbot, contact, ticket, body);
 
       return send;
-
     };
 
     const botList = async () => {
@@ -173,19 +170,19 @@ const sendDialog = async (
     };
 
     if (buttonActive.value === "text") {
-      return await botText();
+      return botText();
     }
 
     if (buttonActive.value === "button" && showChatBots.options.length > 4) {
-      return await botText();
+      return botText();
     }
 
     if (buttonActive.value === "button" && showChatBots.options.length <= 4) {
-      return await botButton();
+      return botButton();
     }
 
     if (buttonActive.value === "list") {
-      return await botList();
+      return botList();
     }
   }
 };
@@ -283,19 +280,19 @@ const backToMainMenu = async (
   };
 
   if (buttonActive.value === "text") {
-    return await botText();
+    return botText();
   }
 
   if (buttonActive.value === "button" && queues.length > 4) {
-    return await botText();
+    return botText();
   }
 
   if (buttonActive.value === "button" && queues.length <= 4) {
-    return await botButton();
+    return botButton();
   }
 
   if (buttonActive.value === "list") {
-    return await botList();
+    return botList();
   }
 };
 
@@ -311,8 +308,7 @@ export const sayChatbot = async (
     msg?.message?.listResponseMessage?.singleSelectReply.selectedRowId ||
     getBodyMessage(msg);
 
-
-    console.log('Selecionado a opção: ', selectedOption);
+  console.log("Selecionado a opção: ", selectedOption);
 
   if (!queueId && selectedOption && msg.key.fromMe) return;
 
@@ -326,13 +322,13 @@ export const sayChatbot = async (
   if (!getStageBot) {
     const queue = await ShowQueueService(queueId);
 
-    const selectedOption =
-    msg?.message?.buttonsResponseMessage?.selectedButtonId ||
-    msg?.message?.listResponseMessage?.singleSelectReply.selectedRowId ||
+    const selectedOptions =
+      msg?.message?.buttonsResponseMessage?.selectedButtonId ||
+      msg?.message?.listResponseMessage?.singleSelectReply.selectedRowId ||
       getBodyMessage(msg);
 
-     console.log("!getStageBot", selectedOption);
-    const choosenQueue = queue.chatbots[+selectedOption - 1];
+    console.log("!getStageBot", selectedOptions);
+    const choosenQueue = queue.chatbots[+selectedOptions - 1];
 
     if (!choosenQueue?.greetingMessage) {
       await DeleteDialogChatBotsServices(contact.id);
@@ -373,7 +369,7 @@ export const sayChatbot = async (
       ? bots.options[+selected - 1]
       : bots.options[0];
 
-      console.log("choosenQueue", choosenQueue);
+    console.log("choosenQueue", choosenQueue);
 
     if (!choosenQueue.greetingMessage) {
       await DeleteDialogChatBotsServices(contact.id);

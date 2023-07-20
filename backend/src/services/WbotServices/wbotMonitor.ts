@@ -21,10 +21,6 @@ type Session = WASocket & {
   store?: Store;
 };
 
-interface IContact {
-  contacts: BContact[];
-}
-
 const wbotMonitor = async (
   wbot: Session,
   whatsapp: Whatsapp
@@ -96,10 +92,6 @@ const wbotMonitor = async (
         contacts
       });
     });
-
-    //wbot.ev.on("contacts.set", async (contacts: IContact) => {
-    //  console.log("set", contacts);
-    //});
   } catch (err) {
     Sentry.captureException(err);
     logger.error(err);
