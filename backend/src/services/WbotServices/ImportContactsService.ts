@@ -40,4 +40,4 @@ const ImportContactsService = async (userId: number): Promise<void> => {
   });
 };
 
-export default ImportContactsService; 
+export default ImportContactsService;
